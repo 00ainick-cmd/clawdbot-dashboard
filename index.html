@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawdBot Effectiveness Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e14;
+    --bg-card: #0d1117;
+    --bg-card-hover: #161b22;
+    --border: #1b2433;
+    --border-glow: #00ff4130;
+    --green: #00ff41;
+    --green-dim: #00aa2a;
+    --green-glow: #00ff4140;
+    --amber: #ffb000;
+    --amber-dim: #cc8d00;
+    --red: #ff4444;
+    --red-dim: #cc3333;
+    --cyan: #00d4ff;
+    --purple: #b48ead;
+    --text: #c9d1d9;
+    --text-dim: #6e7681;
+    --text-bright: #f0f6fc;
+    --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+    --font-pixel: 'Press Start 2P', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .header {
+    background: linear-gradient(180deg, #0d1117 0%, #0a0e14 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--font-pixel); font-size: 12px; color: var(--green); text-shadow: 0 0 10px var(--green-glow); letter-spacing: 2px; }
+  .logo-sub { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--text-dim); }
+  .btn {
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--text);
+    cursor: default;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .snapshot-badge {
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    padding: 4px 10px;
+    border: 1px solid var(--amber-dim);
+    border-radius: 4px;
+    color: var(--amber);
+    letter-spacing: 1px;
+  }
+
+  .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: var(--border-glow); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title { font-family: var(--font-pixel); font-size: 9px; color: var(--green); letter-spacing: 1px; }
+  .card-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(0,255,65,0.1);
+    color: var(--green);
+    font-weight: 600;
+  }
+  .card-body { padding: 16px; }
+
+  .hero { display: grid; grid-template-columns: 1fr 1.5fr; gap: 32px; align-items: center; }
+  .gauge-section { text-align: center; }
+  .gauge-container { position: relative; width: 220px; height: 110px; overflow: hidden; margin: 0 auto 16px; }
+  .gauge-bg {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: conic-gradient(
+      var(--gauge-color, var(--green)) 0deg var(--gauge-deg, 0deg),
+      var(--border) var(--gauge-deg, 0deg) 180deg,
+      transparent 180deg 360deg
+    );
+    -webkit-mask: radial-gradient(circle at center, transparent 65%, black 67%);
+    mask: radial-gradient(circle at center, transparent 65%, black 67%);
+  }
+  .gauge-score {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-pixel);
+    font-size: 36px;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green-glow), 0 0 40px var(--green-glow);
+  }
+  .gauge-grade { font-family: var(--font-pixel); font-size: 20px; margin-bottom: 4px; }
+  .gauge-label { font-family: var(--font-pixel); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+
+  .breakdown { display: flex; flex-direction: column; gap: 12px; }
+  .breakdown-row { display: grid; grid-template-columns: 140px 1fr 50px; gap: 12px; align-items: center; }
+  .breakdown-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .breakdown-bar-bg {
+    height: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .breakdown-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    position: relative;
+  }
+  .breakdown-bar-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+    animation: barShimmer 2s ease-in-out infinite;
+  }
+  @keyframes barShimmer { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+  .breakdown-score { font-family: var(--font-pixel); font-size: 9px; text-align: right; }
+
+  .arsenal-summary {
+    font-family: var(--font-pixel);
+    font-size: 9px;
+    color: var(--text-dim);
+    padding: 8px 0 16px;
+    letter-spacing: 1px;
+  }
+  .arsenal-summary .highlight { color: var(--green); }
+  .category-section { margin-bottom: 20px; }
+  .category-header {
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .skill-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 10px;
+    position: relative;
+    transition: all 0.3s;
+    cursor: default;
+    min-width: 120px;
+  }
+  .skill-card.active {
+    border-color: var(--green-dim);
+    color: var(--green);
+    box-shadow: 0 0 8px var(--green-glow), inset 0 0 4px var(--green-glow);
+    animation: skillPulse 3s ease-in-out infinite;
+  }
+  @keyframes skillPulse { 0%, 100% { box-shadow: 0 0 8px var(--green-glow), inset 0 0 4px var(--green-glow); } 50% { box-shadow: 0 0 14px var(--green-glow), inset 0 0 8px var(--green-glow); } }
+  .skill-card.dormant { opacity: 0.2; border-color: transparent; }
+  .skill-card.dormant:hover { opacity: 0.5; border-color: var(--border); }
+  .usage-badge {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    background: var(--green);
+    color: var(--bg);
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .blind-spot-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--amber);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+  }
+  .blind-spot-card:hover { border-color: var(--border-glow); }
+  .blind-spot-card.critical { border-left-color: var(--red); }
+  .blind-spot-card.warning { border-left-color: var(--amber); }
+  .blind-spot-card.info { border-left-color: var(--cyan); }
+  .blind-spot-severity {
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .blind-spot-card.critical .blind-spot-severity { color: var(--red); }
+  .blind-spot-card.warning .blind-spot-severity { color: var(--amber); }
+  .blind-spot-card.info .blind-spot-severity { color: var(--cyan); }
+  .blind-spot-title { font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+  .blind-spot-desc { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .blind-spot-action { font-size: 10px; color: var(--green); }
+  .blind-spot-action::before { content: '> '; font-family: var(--font-pixel); }
+
+  .radar-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--amber);
+    margin-left: 8px;
+    vertical-align: middle;
+    animation: radarPing 2s infinite;
+  }
+  @keyframes radarPing {
+    0% { box-shadow: 0 0 0 0 rgba(255,176,0,0.5); }
+    70% { box-shadow: 0 0 0 12px rgba(255,176,0,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,176,0,0); }
+  }
+
+  .tip-item {
+    display: grid;
+    grid-template-columns: 28px 1fr 60px;
+    gap: 10px;
+    align-items: start;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tip-item:last-child { border-bottom: none; }
+  .tip-num {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .tip-num.p1, .tip-num.p2 { color: var(--red); border-color: var(--red-dim); }
+  .tip-num.p3 { color: var(--amber); border-color: var(--amber-dim); }
+  .tip-num.p4, .tip-num.p5 { color: var(--green); border-color: var(--green-dim); }
+  .tip-text { font-size: 12px; color: var(--text); line-height: 1.5; }
+  .tip-impact {
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .tip-impact.High { background: rgba(255,68,68,0.15); color: var(--red); }
+  .tip-impact.Medium { background: rgba(255,176,0,0.15); color: var(--amber); }
+  .tip-impact.Low { background: rgba(0,255,65,0.15); color: var(--green); }
+
+  .heatmap-grid { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
+  .heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    color: var(--text-dim);
+    transition: all 0.3s;
+  }
+  .heatmap-cell.active { border-color: var(--green-dim); color: var(--green); }
+  .heatmap-cell.peak { border-color: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+  .heatmap-labels { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; margin-top: 4px; }
+  .heatmap-label { font-size: 8px; color: var(--text-dim); text-align: center; }
+
+  .rt-bucket { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .rt-label { font-size: 10px; color: var(--text-dim); width: 70px; text-align: right; flex-shrink: 0; }
+  .rt-bar-bg { flex: 1; height: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+  .rt-bar-fill { height: 100%; border-radius: 2px; }
+  .rt-count { font-family: var(--font-pixel); font-size: 8px; width: 40px; color: var(--text-dim); }
+
+  .footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 10px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+  }
+  .footer a { color: var(--green-dim); }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .heatmap-grid { grid-template-columns: repeat(12, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .header { flex-direction: column; gap: 8px; }
+    .header-right { flex-wrap: wrap; justify-content: center; }
+    .breakdown-row { grid-template-columns: 100px 1fr 40px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div>
+      <div class="logo">CLAWDBOT</div>
+      <div class="logo-sub">EFFECTIVENESS DASHBOARD</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="convention-countdown"></span>
+    <span id="clock"></span>
+    <span class="snapshot-badge" id="snapshot-time">SNAPSHOT</span>
+  </div>
+</header>
+
+<main class="main">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">DENNIS RATING</span>
+      <span class="card-badge" id="last-updated">--</span>
+    </div>
+    <div class="card-body">
+      <div class="hero" id="hero-content">
+        <div class="gauge-section">
+          <div class="gauge-container">
+            <div class="gauge-bg" id="gauge-fill"></div>
+            <div class="gauge-score" id="dennis-score">0.0</div>
+          </div>
+          <div class="gauge-grade" id="dennis-grade">-</div>
+          <div class="gauge-label" id="dennis-label">LOADING...</div>
+        </div>
+        <div class="breakdown" id="breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">SKILLS ARSENAL</span>
+      <span class="card-badge" id="skills-badge">--</span>
+    </div>
+    <div class="card-body">
+      <div class="arsenal-summary" id="arsenal-summary"></div>
+      <div id="skills-container"></div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">BLIND SPOTS <span class="radar-dot"></span></span>
+        <span class="card-badge" id="spots-count">--</span>
+      </div>
+      <div class="card-body" id="blind-spots-container"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">TACTICAL TIPS</span>
+        <span class="card-badge" id="tips-count">--</span>
+      </div>
+      <div class="card-body" id="tips-container"></div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">ACTIVITY HEATMAP</span>
+        <span class="card-badge">24H</span>
+      </div>
+      <div class="card-body">
+        <div id="heatmap-container"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">RESPONSE TIMES</span>
+        <span class="card-badge" id="rt-avg">--</span>
+      </div>
+      <div class="card-body" id="rt-container"></div>
+    </div>
+  </div>
+</main>
+
+<div class="footer">
+  CLAWDBOT EFFECTIVENESS DASHBOARD | Powered by Claude Agent SDK | Data refreshed via <code>publish-dashboard.sh</code>
+</div>
+
+<!-- DATA INJECTED BY PUBLISH SCRIPT -->
+<script id="embedded-data" type="application/json">__EFFECTIVENESS_DATA__</script>
+
+<script>
+  // ── Clock + Convention ──
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    const conv = new Date('2026-03-15');
+    const days = Math.ceil((conv - now) / (1000*60*60*24));
+    const el = document.getElementById('convention-countdown');
+    if (days > 0) {
+      el.textContent = 'AEA CONVENTION: ' + days + 'd';
+      el.style.color = days <= 14 ? 'var(--red)' : days <= 30 ? 'var(--amber)' : 'var(--text-dim)';
+    } else if (days === 0) {
+      el.textContent = 'CONVENTION: TODAY';
+      el.style.color = 'var(--green)';
+    }
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function scoreColor(score, max) {
+    const pct = score / max;
+    if (pct >= 0.75) return 'var(--green)';
+    if (pct >= 0.4) return 'var(--amber)';
+    return 'var(--red)';
+  }
+
+  function renderDennisRating(rating) {
+    const target = rating.total;
+    const scoreEl = document.getElementById('dennis-score');
+    const gaugeEl = document.getElementById('gauge-fill');
+    const gradeEl = document.getElementById('dennis-grade');
+    const labelEl = document.getElementById('dennis-label');
+
+    let gaugeColor = 'var(--green)';
+    if (target < 4) gaugeColor = 'var(--red)';
+    else if (target < 7) gaugeColor = 'var(--amber)';
+
+    gradeEl.style.color = gaugeColor;
+    gradeEl.textContent = rating.grade;
+    labelEl.textContent = rating.label;
+
+    let current = 0;
+    const step = target / 80;
+    function animate() {
+      current = Math.min(current + step, target);
+      scoreEl.textContent = current.toFixed(1);
+      scoreEl.style.color = gaugeColor;
+      scoreEl.style.textShadow = '0 0 20px ' + gaugeColor + '80, 0 0 40px ' + gaugeColor + '40';
+      const deg = (current / 10) * 180;
+      gaugeEl.style.setProperty('--gauge-deg', deg + 'deg');
+      gaugeEl.style.setProperty('--gauge-color', gaugeColor);
+      if (current < target) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    const bd = rating.breakdown;
+    const rows = [
+      { key: 'skillsUtilization', label: 'Skills' },
+      { key: 'featureCoverage', label: 'Features' },
+      { key: 'contentVelocity', label: 'Content' },
+      { key: 'systemHealth', label: 'System Health' },
+      { key: 'pipelineMomentum', label: 'Pipeline' },
+      { key: 'consistency', label: 'Consistency' },
+    ];
+    document.getElementById('breakdown').innerHTML = rows.map(r => {
+      const d = bd[r.key];
+      const pct = (d.score / d.max) * 100;
+      const color = scoreColor(d.score, d.max);
+      return '<div class="breakdown-row" title="' + d.details + '">' +
+        '<div class="breakdown-label">' + r.label + '</div>' +
+        '<div class="breakdown-bar-bg"><div class="breakdown-bar-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
+        '<div class="breakdown-score" style="color:' + color + '">' + d.score + '/' + d.max + '</div></div>';
+    }).join('');
+  }
+
+  function renderSkillsArsenal(arsenal) {
+    document.getElementById('skills-badge').textContent = arsenal.usedCount + '/' + arsenal.totalSkills;
+    const activeCats = arsenal.categories.filter(function(c) { return c.skills.some(function(s) { return s.isUsed; }); }).length;
+    document.getElementById('arsenal-summary').innerHTML =
+      'SKILLS ONLINE: <span class="highlight">' + arsenal.usedCount + '/' + arsenal.totalSkills +
+      ' (' + arsenal.usageRate + '%)</span>  |  CATEGORIES ACTIVE: <span class="highlight">' +
+      activeCats + '/' + arsenal.categories.length + '</span>';
+
+    document.getElementById('skills-container').innerHTML = arsenal.categories.map(function(cat) {
+      var catUsed = cat.skills.filter(function(s) { return s.isUsed; }).length;
+      return '<div class="category-section">' +
+        '<div class="category-header">' + cat.name + ' <span style="color:var(--text-dim)">(' + catUsed + '/' + cat.skills.length + ')</span></div>' +
+        '<div class="skills-grid">' + cat.skills.map(function(s) {
+          return '<div class="skill-card ' + (s.isUsed ? 'active' : 'dormant') + '" title="' + s.displayName + (s.isUsed ? ' — used ' + s.usageCount + 'x' : ' — unused') + '">' +
+            (s.isUsed ? '<div class="usage-badge">' + s.usageCount + '</div>' : '') + s.displayName + '</div>';
+        }).join('') + '</div></div>';
+    }).join('');
+  }
+
+  function renderBlindSpots(spots) {
+    document.getElementById('spots-count').textContent = spots.length;
+    var container = document.getElementById('blind-spots-container');
+    if (spots.length === 0) {
+      container.innerHTML = '<div style="text-align:center; color:var(--green); padding:20px; font-family:var(--font-pixel); font-size:9px;">ALL CLEAR</div>';
+      return;
+    }
+    container.innerHTML = spots.map(function(s) {
+      return '<div class="blind-spot-card ' + s.severity + '">' +
+        '<div class="blind-spot-severity">' + s.severity + '</div>' +
+        '<div class="blind-spot-title">' + s.title + '</div>' +
+        '<div class="blind-spot-desc">' + s.description + '</div>' +
+        '<div class="blind-spot-action">' + s.action + '</div></div>';
+    }).join('');
+  }
+
+  function renderTips(tips) {
+    document.getElementById('tips-count').textContent = tips.length;
+    var container = document.getElementById('tips-container');
+    if (tips.length === 0) {
+      container.innerHTML = '<div style="text-align:center; color:var(--green); padding:20px; font-family:var(--font-pixel); font-size:9px;">NO TIPS — YOU\'RE CRUSHING IT</div>';
+      return;
+    }
+    container.innerHTML = tips.map(function(t, i) {
+      return '<div class="tip-item">' +
+        '<div class="tip-num p' + t.priority + '">' + (i + 1) + '</div>' +
+        '<div class="tip-text">' + t.text + '</div>' +
+        '<div class="tip-impact ' + t.impact + '">' + t.impact + '</div></div>';
+    }).join('');
+  }
+
+  function renderHeatmap(heatmap) {
+    var container = document.getElementById('heatmap-container');
+    var vals = Object.values(heatmap);
+    var maxCount = Math.max(1, Math.max.apply(null, vals.length ? vals : [0]));
+    var cells = '', labels = '';
+    for (var h = 0; h < 24; h++) {
+      var key = String(h).padStart(2, '0') + ':00';
+      var count = heatmap[key] || 0;
+      var intensity = count / maxCount;
+      var isPeak = count === maxCount && count > 0;
+      var bg = count > 0 ? 'rgba(0, 255, 65, ' + (0.1 + intensity * 0.6) + ')' : 'transparent';
+      cells += '<div class="heatmap-cell ' + (count > 0 ? 'active' : '') + ' ' + (isPeak ? 'peak' : '') + '" style="background:' + bg + '" title="' + key + ': ' + count + ' msgs">' + (count > 0 ? count : '') + '</div>';
+      labels += '<div class="heatmap-label">' + (h % 3 === 0 ? h : '') + '</div>';
+    }
+    container.innerHTML = '<div class="heatmap-grid">' + cells + '</div><div class="heatmap-labels">' + labels + '</div>';
+  }
+
+  function renderResponseTimes(times) {
+    var container = document.getElementById('rt-container');
+    if (!times || times.length === 0) {
+      container.innerHTML = '<div style="text-align:center; color:var(--text-dim); padding:20px;">NO DATA</div>';
+      return;
+    }
+    var sum = times.reduce(function(a, b) { return a + b; }, 0);
+    var avg = Math.round(sum / times.length / 1000);
+    document.getElementById('rt-avg').textContent = 'AVG: ' + avg + 's';
+
+    var buckets = [
+      { label: '< 5s', min: 0, max: 5000, color: 'var(--green)' },
+      { label: '5-15s', min: 5000, max: 15000, color: 'var(--green-dim)' },
+      { label: '15-30s', min: 15000, max: 30000, color: 'var(--amber)' },
+      { label: '30-60s', min: 30000, max: 60000, color: 'var(--amber-dim)' },
+      { label: '1-2m', min: 60000, max: 120000, color: 'var(--red-dim)' },
+      { label: '> 2m', min: 120000, max: Infinity, color: 'var(--red)' },
+    ];
+    var counts = buckets.map(function(b) {
+      return { label: b.label, color: b.color, count: times.filter(function(t) { return t >= b.min && t < b.max; }).length };
+    });
+    var maxCount = Math.max(1, Math.max.apply(null, counts.map(function(c) { return c.count; })));
+    container.innerHTML = counts.map(function(b) {
+      var pct = (b.count / maxCount) * 100;
+      return '<div class="rt-bucket"><div class="rt-label">' + b.label + '</div>' +
+        '<div class="rt-bar-bg"><div class="rt-bar-fill" style="width:' + pct + '%; background:' + b.color + ';"></div></div>' +
+        '<div class="rt-count" style="color:' + b.color + '">' + b.count + '</div></div>';
+    }).join('');
+  }
+
+  // ── Load embedded data ──
+  (function() {
+    try {
+      var raw = document.getElementById('embedded-data').textContent;
+      var data = JSON.parse(raw);
+      var ts = new Date(data.lastUpdated);
+      document.getElementById('last-updated').textContent = 'Updated: ' + ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString();
+      document.getElementById('snapshot-time').textContent = 'SNAPSHOT: ' + ts.toLocaleDateString();
+      renderDennisRating(data.dennisRating);
+      renderSkillsArsenal(data.skillsArsenal);
+      renderBlindSpots(data.blindSpots);
+      renderTips(data.tips);
+      renderHeatmap(data.heatmap);
+      renderResponseTimes(data.responseTimes);
+    } catch (e) {
+      document.getElementById('dennis-label').textContent = 'DATA LOAD FAILED';
+      console.error(e);
+    }
+  })();
+</script>
+</body>
+</html>
